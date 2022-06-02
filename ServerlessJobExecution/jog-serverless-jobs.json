@@ -1,0 +1,49 @@
+{   "Defaults" : {
+        "RunAs" : "ctmagent", "Application": "jog", "SubApplication" : "serverless-execution",
+        "ControlmServer":"smprod", "OrderMethod": "Manual",  
+        "Host": "slessaws"
+    },
+    
+    "jog-serverless-jobs" : {     "Type" : "Folder",
+      "jog-sless-job01": {"Type" : "Job:Command", "Command" : "sleep 300"},
+      "jog-sless-job02": {"Type" : "Job:Command", "Command" : "sleep 300"},
+      "jog-sless-job03": {"Type" : "Job:Command", "Command" : "sleep 300"},
+      "jog-sless-job04": {"Type" : "Job:Command", "Command" : "sleep 300"},
+      "jog-sless-job05": {"Type" : "Job:Command", "Command" : "sleep 300"},
+      "jog-sless-job06": {"Type" : "Job:Command", "Command" : "sleep 300"},
+      "jog-sless-job07": {"Type" : "Job:Command", "Command" : "sleep 300"},
+      "jog-sless-job08": {"Type" : "Job:Command", "Command" : "sleep 300"},
+      "jog-sless-job09": {"Type" : "Job:Command", "Command" : "sleep 300"},
+      "jog-sless-job10": {"Type" : "Job:Command", "Command" : "sleep 300"},
+      
+      "Defaults" : {
+        "Host": "slessgcp"
+      },
+      
+      "jog-sless-job40": {"Type" : "Job:Command", "Command" : "sleep 300"},
+      "jog-sless-job41": {"Type" : "Job:Command", "Command" : "sleep 300"},
+      "jog-sless-job42": {"Type" : "Job:Command", "Command" : "sleep 300"},
+      "jog-sless-job43": {"Type" : "Job:Command", "Command" : "sleep 300"},
+      "jog-sless-job44": {"Type" : "Job:Command", "Command" : "sleep 300"},
+      "jog-sless-job45": {"Type" : "Job:Command", "Command" : "sleep 300"},
+      "jog-sless-job46": {"Type" : "Job:Command", "Command" : "sleep 300"},
+      "jog-sless-job47": {"Type" : "Job:Command", "Command" : "sleep 300"},
+      "jog-sless-job48": {"Type" : "Job:Command", "Command" : "sleep 300"},
+      "jog-sless-job49": {"Type" : "Job:Command", "Command" : "sleep 300"},
+
+      "Defaults" : {
+        "Host": "slessaz"
+      },
+      
+      "jog-sless-job60": {"Type" : "Job:Command", "Command" : "sleep 300"},
+      "jog-sless-job61": {"Type" : "Job:Command", "Command" : "sleep 300"},
+      "jog-sless-job62": {"Type" : "Job:Command", "Command" : "sleep 300"},
+      "jog-sless-job63": {"Type" : "Job:Command", "Command" : "sleep 300"},
+      "jog-sless-job64": {"Type" : "Job:Command", "Command" : "sleep 300"},
+      "jog-sless-job65": {"Type" : "Job:Command", "Command" : "sleep 300"},
+      "jog-sless-job66": {"Type" : "Job:Command", "Command" : "sleep 300"},
+      "jog-sless-job67": {"Type" : "Job:Command", "Command" : "sleep 300"},
+      "jog-sless-job68": {"Type" : "Job:Command", "Command" : "sleep 300"},
+      "jog-sless-job69": {"Type" : "Job:Command", "Command" : "sleep 300"}
+  }
+}

@@ -1,0 +1,58 @@
+{
+  "Defaults" : {
+    "RunAs" : "ctmagent", "Application": "jog", "SubApplication" : "serverless",
+    "ActiveRetentionPolicy" : "CleanEndedOK",
+    "Description" : "Manage serverless job execution using GCP resources",
+    "ControlmServer":"smprod", "OrderMethod": "Manual",  
+    "Host": "gcpagents"
+  },
+  "jog-sless-gcp" : {"Type" : "Folder",
+    "SiteStandard" : "jog",
+ 
+    "jog-sless-provision-resources" : {"Type" : "Job:EmbeddedScript",
+      "Script" : "#!/bin/bash\\n\\nif [[ $# -eq 0 ]] ; then\\n    echo valid hostname is required\\n    exit 1\\nfi\\n\\ngcpagent=\"gcp-agent-${4}\"\\n\\necho \"Hostname = ${gcpagent}\"\\n\\n# Create instance from template\\ngcloud compute instances create ${gcpagent} --project=sso-gcp-dba-ctm4-pub-cc10274 --zone=us-central1-a --machine-type=e2-medium --network-interface=network-tier=PREMIUM,subnet=default --metadata=startup-script=\\#\\!/bin/bash$'\\n'sudo\\ echo\\ 52.12.7.249\\ ip-172-31-50-204.us-west-2.compute.internal\\ \\>\\>\\ /etc/hosts$'\\n'sudo\\ apt-get\\ update$'\\n'sudo\\ apt-get\\ install\\ -yq\\ openjdk-11-jdk\\ wget\\ psmisc$'\\n'wget\\ https://\\<your\\ control-m\\ em\\ url\\>:8443/automation-api/ctm-cli.tgz\\ --no-check-certificate$'\\n'sudo\\ curl\\ -sL\\ https://deb.nodesource.com/setup_14.x\\ \\|\\ sudo\\ -E\\ bash\\ -$'\\n'sudo\\ apt-get\\ install\\ -y\\ nodejs$'\\n'GCP_Instance_ID=\\`curl\\ -s\\ \\\"http://metadata.google.internal/computeMetadata/v1/instance/id\\\"\\ -H\\ \\\"Metadata-Flavor:\\ Google\\\"\\`$'\\n'iname=\\`curl\\ -s\\ \\\"http://metadata.google.internal/computeMetadata/v1/instance/name\\\"\\ -H\\ \\\"Metadata-Flavor:\\ Google\\\"\\`$'\\n'zone=\\`curl\\ -s\\ \\\"http://metadata.google.internal/computeMetadata/v1/instance/zone\\\"\\ -H\\ \\\"Metadata-Flavor:\\ Google\\\"\\`$'\\n'CTM_ENV=\\`gcloud\\ compute\\ instances\\ describe\\ \\$\\(hostname\\)\\ --zone=\\$\\{zone\\}\\ --format=\\\"text\\(labels\\)\\\"\\ \\|\\ grep\\ ctmenvironment\\ \\|\\ cut\\ -f\\ 2\\ -d\\ \\':\\'\\ \\|\\ sed\\ s/\\[^a-zA-Z0-9_-\\]//g\\`$'\\n'ctmhgroup=\\`gcloud\\ compute\\ instances\\ describe\\ \\$\\(hostname\\)\\ --zone=\\$\\{zone\\}\\ --format=\\\"text\\(labels\\)\\\"\\ \\|\\ grep\\ ctmhostgroup\\ \\|\\ cut\\ -f\\ 2\\ -d\\ \\':\\'\\ \\|\\ sed\\ s/\\[^a-zA-Z0-9_-\\]//g\\`$'\\n'envurl=\\$\\{CTM_ENV\\}-url$'\\n'ctmurl=\\`gcloud\\ secrets\\ versions\\ access\\ latest\\ --secret=\\\"\\$\\{envurl\\}\\\"\\`$'\\n'envuser=\\$\\{CTM_ENV\\}-user$'\\n'ctmuser=\\`gcloud\\ secrets\\ versions\\ access\\ latest\\ --secret=\\\"\\$\\{envuser\\}\\\"\\`$'\\n'envpswd=\\$\\{CTM_ENV\\}-password$'\\n'ctmpswd=\\`gcloud\\ secrets\\ versions\\ access\\ latest\\ --secret=\\\"\\$\\{envpswd\\}\\\"\\`$'\\n'envsrvr=\\$\\{CTM_ENV\\}-server$'\\n'ctmserver=\\`gcloud\\ secrets\\ versions\\ access\\ latest\\ --secret=\\\"\\$\\{envsrvr\\}\\\"\\`$'\\n'envausr=\\$\\{CTM_ENV\\}-agentuser$'\\n'agentuser=\\`gcloud\\ secrets\\ versions\\ access\\ latest\\ --secret=\\\"\\$\\{envausr\\}\\\"\\`$'\\n'newhost=\\\"\\$\\(hostname\\).ctmgcpagents.com\\\"$'\\n'externalIp=\\`gcloud\\ compute\\ instances\\ describe\\ \\$\\{iname\\}\\ --zone=\\$\\{zone\\}\\ --format=\\'get\\(networkInterfaces\\[0\\].accessConfigs\\[0\\].natIP\\)\\'\\`$'\\n'gcloud\\ beta\\ dns\\ --project=sso-gcp-dba-ctm4-pub-cc10274\\ record-sets\\ transaction\\ start\\ --zone=\\\"ctmgcpagents-com\\\"\\ \\&\\&\\ gcloud\\ beta\\ dns\\ --project=sso-gcp-dba-ctm4-pub-cc10274\\ record-sets\\ transaction\\ add\\ \\$\\{externalIp\\}\\ --name=\\\"\\$\\{newhost\\}\\\"\\ --ttl=\\\"300\\\"\\ --type=\\\"A\\\"\\ --zone=\\\"ctmgcpagents-com\\\"\\ \\&\\&\\ gcloud\\ beta\\ dns\\ --project=sso-gcp-dba-ctm4-pub-cc10274\\ record-sets\\ transaction\\ execute\\ --zone=\\\"ctmgcpagents-com\\\"$'\\n'sudo\\ useradd\\ -d\\ /home/\\$\\{agentuser\\}\\ -m\\ -s\\ /bin/bash\\ \\$\\{agentuser\\}$'\\n'sudo\\ wget\\ https://smprod.ctmdemo.com:8443/automation-api/ctm-cli.tgz\\ --no-check-certificate$'\\n'sudo\\ npm\\ install\\ -g\\ ctm-cli.tgz$'\\n'sudo\\ su\\ -\\ \\$\\{agentuser\\}\\ -c\\ \\\"ctm\\ env\\ add\\ ctm\\ \\$\\{ctmurl\\}\\ \\$\\{ctmuser\\}\\ \\$\\{ctmpswd\\}\\\"$'\\n'ALIAS=\\$\\{newhost\\}:gcp-\\$GCP_Instance_ID$'\\n'len=\\`expr\\ length\\ \\\"\\$\\{ALIAS\\}\\\"\\`$'\\n'if\\ \\[\\[\\ \\$len\\ -gt\\ 85\\ \\]\\]$'\\n'then$'\\n'\\ echo\\ Agent\\ name\\ \\$\\{ALIAS\\}\\ too\\ long\\ \\>\\>\\ \\$GCP_LOG$'\\n'\\ exit\\ 99$'\\n'else$'\\n'\\ \\ \\ \\ echo\\ Agent\\ name\\ \\$\\{ALIAS\\}\\ will\\ be\\ used$'\\n'\\ echo\\ Agent\\ name\\ \\$\\{ALIAS\\}\\ will\\ be\\ used\\ \\>\\>\\ \\$GCP_LOG$'\\n'fi$'\\n'sudo\\ su\\ -\\ \\$\\{agentuser\\}\\ -c\\ \\\"ctm\\ provision\\ install\\ Agent_20.200.Linux\\ \\$\\{ctmserver\\}\\ \\$\\{ALIAS\\}\\\"$'\\n'sudo\\ su\\ -\\ \\$\\{agentuser\\}\\ -c\\ \\\"ctm\\ config\\ server:hostgroup:agent::add\\ \\$\\{ctmserver\\}\\ \\$\\{ctmhgroup\\}\\ \\$\\{ALIAS\\}\\\"$'\\n'$'\\n'echo\\ STARTED\\ \\>\\ /home/ctmagent/ctm/data/ctm_agent_status.dat$'\\n'$'\\n'sudo\\ wget\\ -O\\ /etc/rc.d/init.d/ctmagent\\ https://raw.githubusercontent.com/JoeGoldberg/automation-api-community-solutions/master/3-infrastructure-as-code-examples/manage-workload-on-gcp/rc.GCP_Agent_sample$'\\n'sudo\\ chmod\\ \\+x\\ /etc/rc.d/init.d/ctmagent$'\\n'sudo\\ chkconfig\\ --level\\ 345\\ ctmagent\\ on --maintenance-policy=MIGRATE --service-account=jogoldbectm@sso-gcp-dba-ctm4-pub-cc10274.iam.gserviceaccount.com --scopes=https://www.googleapis.com/auth/cloud-platform --tags=ctmagent,https-server --create-disk=auto-delete=yes,boot=yes,device-name=dynamic-agent-template,image=projects/debian-cloud/global/images/debian-10-buster-v20220118,mode=rw,size=40,type=projects/sso-gcp-dba-ctm4-pub-cc10274/zones/us-central1-a/diskTypes/pd-balanced --no-shielded-secure-boot --shielded-vtpm --shielded-integrity-monitoring --labels=ctmenvironment=ctmprod,ctmhostgroup=slessgcp,ctmserver=smprod --reservation-affinity=any",
+      "SubApplication" : "serverless",
+      "FileName" : "gcp-provision.sh",
+      "Host" : "gcpagents",
+      "Variables" : [ 
+        {"PARM1" : "2"}, 
+        {"PARM2" : "ctmprod"}, 
+        {"PARM3" : "slessgcp"}, 
+        {"PARM4" : "%%ORDERID"}
+      ]
+    },
+    "jog-sless-wait-for-hosts" : {"Type" : "Job:EmbeddedScript",
+      "Script" : "#!/bin/bash\\nhostgrp=${1}\\nsleeper=15\\nwaiter=20\\nwhile [ $waiter -gt 0 ]\\ndo\\n    ctmhostgroup=`ctm config server:hostgroup:agents::get smprod ${hostgrp} 2> /dev/null`\\n    rc=$?\\n    if [ ${rc} -ne 0 ];\\n    then\\n        echo Hostgroup ${hostgrp} does not exist yet\\n        sleep $sleeper\\n        waiter=$((waiter-1))\\n    else\\n        echo Hostgroup ${hostgrp} found\\n        waiter=100\\n        break\\n    fi\\ndone\\nif [ ${waiter} -eq 0 ];\\nthen\\n    echo Hostgroup not found after 5 minutes - quitting\\n    exit 99\\nfi\\n#   Test first\\nhgagent=`echo ${ctmhostgroup} | jq -r .[0].host`\\nagstat=`ctm config server:agent::ping smprod ${hgagent} | jq -r .message | cut -d \" \" -f 4`\\nif [ ${agstat} != available ]\\nthen\\n        echo No agent available in hostgroup\\n        exit 99\\nelse\\n    echo At least one agent ${hgagent} is available in hostgroup ${hostgrp}\\nfi\\nctm run workloadpolicy::activate ${1}2${1}\\nexit 0\\n",
+      "FileName" : "gcp-host-wait.sh",
+      "Description" : "Wait for hostgroup to appear and an agent to become available",
+      "Variables" : [ 
+        {"PARM1" : "slessgcp"}
+      ]
+    },
+
+    "jog-sless-watch-workload" : {"Type" : "Job:EmbeddedScript",
+      "Script" : "#!/bin/bash\\n\\nctm config server:hostgroup:agents::get smprod ${1} &> /dev/null\\nif [[ $? != 0 ]];\\nthen\\n   echo hostgroup ${1} does not exist\\n   exit 99\\nfi\\nterminate=0\\nhoststowatch=`ctm config server:hostgroup:agents::get smprod ${1} | jq -r .[].host`\\nwhile (( ${terminate} != 1 ))\\ndo\\n   termwait=`ctm run jobs:status::get -s \"server=*&status=Wait *&host=${1}&deleted=False\" | jq .returned`\\n\\n   termexec=0\\n   for host in $hoststowatch;\\n   do\\n      numexec=`ctm run jobs:status::get -s \"server=*&status=Executing&host=${host}&deleted=False\" | jq .returned`\\n      if [[ $numexec != 0 ]];\\n      then\\n         termexec=1\\n      fi\\n   done\\n\\n   if [[ (( $termwait -gt 0 )) || (( $termexec -gt 0  )) ]];\\n   then\\n      sleep 30\\n   else\\n      terminate=1\\n   fi\\ndone",
+      "FileName" : "gcp-watch.sh",
+      "Variables" : [ 
+        {"PARM1" : "slessgcp"}
+      ]
+    },
+
+    "jog-sless-terminate" : {"Type" : "Job:EmbeddedScript",
+      "PreCommand" : "rm -f transaction.yaml",
+      "Script" : "#!/bin/bash\\nctm run workloadpolicy::deactivate ${1}2${1}\\nctm config server:hostgroup:agents::get smprod ${1} &> /dev/null\\nif [[ $? != 0 ]];\\nthen\\n   echo hostgroup ${1} does not exist\\n   exit 99\\nfi\\nhoststoterminate=`ctm config server:hostgroup:agents::get smprod ${1} | jq -r .[].host`\\nfor host in $hoststoterminate;\\ndo\\n    ctm config server:hostgroup:agent::delete smprod ${1} ${host}\\n    ctm config server:agent::delete smprod ${host}\\n    ihost=`echo $host | cut -d . -f 1`\\n    zone=`gcloud compute instances list --filter=\"name=${ihost}\" --format \"get(zone)\" | awk -F/ '{print $NF}'`\\n    publicip=`gcloud compute instances list --filter=\"name=${ihost}\" --format \"get(EXTERNAL_IP)\" | awk -F/ '{print $NF}'`\\n    gcloud compute instances delete ${ihost} --zone ${zone} --quiet\\n    gcloud dns --project=sso-gcp-dba-ctm4-pub-cc10274 record-sets transaction start --zone=ctmgcpagents-com &&\\n    gcloud dns record-sets transaction remove ${publicip} --name=${ihost}.ctmgcpagents.com --ttl=300 --type=A --zone=ctmgcpagents-com &&\\n    gcloud dns --project=sso-gcp-dba-ctm4-pub-cc10274 record-sets transaction execute --zone=ctmgcpagents-com\\ndone\\n",
+      "FileName" : "gcp-terminate.sh",
+      "Variables" : [ 
+        {"PARM1" : "slessgcp"}
+      ],
+      "eventsToDelete" : {
+        "Type" : "DeleteEvents",
+        "Events" : [ {
+          "Event" : "jog-sless-gcp-running",
+          "Date" : "NoDate"
+        } ]
+      }
+    },
+    "flow01" : {"Type" : "Flow", "Sequence" : [ "jog-sless-provision-resources", "jog-sless-wait-for-hosts", "jog-sless-watch-workload", "jog-sless-terminate"]}
+  }
+}

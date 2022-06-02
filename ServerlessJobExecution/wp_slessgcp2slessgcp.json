@@ -1,0 +1,11 @@
+{
+  "slessgcp2slessgcp": {"Type": "WorkloadPolicy",
+    "HostMappings": [
+      {"Server": "Global",
+        "MapTo": "slessgcp",
+        "Host": "slessgcp"
+      }
+    ],
+    "Filter": {"JobName": "*"}
+  }
+}

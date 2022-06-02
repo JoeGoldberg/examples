@@ -1,0 +1,57 @@
+{
+  "Defaults" : {
+    "RunAs" : "ctmagent", "Application": "jog", "SubApplication" : "serverless",
+    "ActiveRetentionPolicy" : "CleanEndedOK",
+    "Description" : "Manage serverless job execution using AWS resources",
+    "ControlmServer":"smprod", "OrderMethod": "Manual",  
+    "Host": "awscliagents"
+  },
+
+  "jog-sless-aws" : {"Type" : "Folder", 
+    "SiteStandard" : "jog",
+
+    "jog-sless-provision-resources" : {"Type" : "Job:EmbeddedScript",
+      "Comment": "Launch EC2 instances for a serverless hostgroup. PARM1=# of instances, PARM2=Control-M environment, PARM3=hostgroup to join",
+      "Script" : "#!/bin/bash\\n\\n#   Check the newly created AMI is available\\naws ec2 describe-images --region us-west-2 --image-ids ami-08c703f67c7b7f793 --query 'Images[0].State' --output text\\n\\n#   Launch ec2 instance(s) \\naws ec2 run-instances --image-id ami-08c703f67c7b7f793 --count ${1} --region us-west-2 --instance-type t2.micro --key-name JoGoKey --security-group-ids sg-0125e6ff1d318ef2a --iam-instance-profile Name=jogoldbeAdmin4EC2 --tag-specifications \"ResourceType=instance,Tags=[{Key=ctmenvironment,Value=${2}},{Key=ctmserver,Value=smprod},{Key=ctmhostgroup,Value=${3}},{Key=Name,Value=ctmprod Control-M Agent}]\"",
+      "FileName" : "aws-provision.sh",
+      "Variables" : [ 
+        {"PARM1" : "2"},
+        {"PARM2" : "ctmprod"},
+        {"PARM3" : "slessaws"}
+      ]
+    },
+
+    "jog-sless-wait-for-hosts" : {"Type" : "Job:EmbeddedScript",
+      "Comment": "Wait for hostgroup and agents t become available",
+      "Description" : "Wait for hostgroup to appear and an agent to become available",
+      "Script" : "#!/bin/bash\\nhostgrp=${1}\\nsleeper=15\\nwaiter=20\\nwhile [ $waiter -gt 0 ]\\ndo\\n    ctmhostgroup=`ctm config server:hostgroup:agents::get smprod ${hostgrp} 2> /dev/null`\\n    rc=$?\\n    if [ ${rc} -ne 0 ];\\n    then\\n        echo Hostgroup ${hostgrp} does not exist yet\\n        sleep $sleeper\\n        waiter=$((waiter-1))\\n    else\\n        echo Hostgroup ${hostgrp} found\\n        waiter=100\\n        break\\n    fi\\ndone\\nif [ ${waiter} -eq 0 ];\\nthen\\n    echo Hostgroup not found after 5 minutes - quitting\\n    exit 99\\nfi\\n#   Test first\\nhgagent=`echo ${ctmhostgroup} | jq -r .[0].host`\\nagstat=`ctm config server:agent::ping smprod ${hgagent} | jq -r .message | cut -d \" \" -f 4`\\nif [ ${agstat} != available ]\\nthen\\n        echo No agent available in hostgroup\\n        exit 99\\nelse\\n    echo At least one agent ${hgagent} is available in hostgroup ${hostgrp}\\nfi\\nctm run workloadpolicy::activate ${1}2${1}\\nexit 0\\n",
+      "FileName" : "aws-host-wait.sh",
+      "Variables" : [
+        {"PARM1" : "slessaws"}
+      ]
+    },
+
+    "jog-sless-watch-workload" : {"Type" : "Job:EmbeddedScript",
+      "Comment": "Monitor workload running on or waiting for this hostgroup and determine when to de-commission",
+      "Script" : "#!/bin/bash\\n\\nctm config server:hostgroup:agents::get smprod ${1} &> /dev/null\\nif [[ $? != 0 ]];\\nthen\\n   echo hostgroup ${1} does not exist\\n   exit 99\\nfi\\nterminate=0\\nhoststowatch=`ctm config server:hostgroup:agents::get smprod ${1} | jq -r .[].host`\\nwhile (( ${terminate} != 1 ))\\ndo\\n   termwait=`ctm run jobs:status::get -s \"server=*&status=Wait *&host=${1}&deleted=False\" | jq .returned`\\n\\n   termexec=0\\n   for host in $hoststowatch;\\n   do\\n      numexec=`ctm run jobs:status::get -s \"server=*&status=Executing&host=${host}&deleted=False\" | jq .returned`\\n      if [[ $numexec != 0 ]];\\n      then\\n         termexec=1\\n      fi\\n   done\\n\\n   if [[ (( $termwait -gt 0 )) || (( $termexec -gt 0  )) ]];\\n   then\\n      sleep 30\\n   else\\n      terminate=1\\n   fi\\ndone",
+      "FileName" : "aws-watch.sh",
+      "Variables" : [ 
+        {"PARM1" : "slessaws"}
+      ]
+    },
+
+    "jog-sless-terminate" : {"Type" : "Job:EmbeddedScript",
+      "Comment": "Terminate and clean up resources",
+      "Script" : "#!/bin/bash\\nctm run workloadpolicy::deactivate ${1}2${1}\\nctm config server:hostgroup:agents::get smprod ${1} &> /dev/null\\nif [[ $? != 0 ]];\\nthen\\n   echo hostgroup ${1} does not exist\\n   exit 99\\nfi\\nhoststoterminate=`ctm config server:hostgroup:agents::get smprod ${1} | jq -r .[].host`\\nfor host in $hoststoterminate;\\ndo\\n    ctm config server:agent::disable smprod ${host}\\n    iid=`echo $host | cut -d : -f 2`\\n    aws ec2 terminate-instances --instance-ids ${iid}\\ndone\\n",
+      "FileName" : "aws-terminate.sh",
+      "Variables" : [ 
+        {"PARM1" : "slessaws"}
+      ],
+      "delmerunning" : {"Type": "DeleteEvents",
+          "Events": [{"Event":"jog-sless-aws-running", "Date":"NoDate"}]
+      }
+    },
+
+    "flow01": {"Type":"Flow", "Sequence":["jog-sless-provision-resources", "jog-sless-wait-for-hosts", "jog-sless-watch-workload", "jog-sless-terminate"]}
+  }
+}

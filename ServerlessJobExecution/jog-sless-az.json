@@ -1,0 +1,64 @@
+{
+  "Defaults" : {
+    "RunAs" : "ctmagent", "Application": "jog", "SubApplication" : "serverless",
+    "ActiveRetentionPolicy" : "CleanEndedOK",
+    "Description" : "Manage serverless job execution using Azure resources",
+    "ControlmServer":"smprod", "OrderMethod": "Manual",  
+    "Host": "azureagents"
+  },
+  "jog-sless-az" : {"Type" : "Folder",
+    "SiteStandard" : "jog",
+ 
+    "jog-sless-provision-resources" : {"Type" : "Job:EmbeddedScript",
+      "Script" : "#!/bin/bash\\n\\n# Unique string - usually an OrderID\\ninstances=${1}\\nctmenvironment=${2}\\nctmhostgroup=${3}\\nsid=az${4}\\nif [[ $# -lt 4 ]] ; then\\n    echo \"Parm1: Number of instances \"\\n    echo \"Parm2: Control-M Environment name \"\\n    echo \"Parm3: Host group to join\"\\n    echo \"Parm4: Unique identifier - may be Control-M OrderID \"\\n    exit 1\\nfi\\n\\n# Resource Group for the Managed Identity\\nidentityGroup=\"jogoldbe_ResourceGroup\"\\n# Azure credentials\\naz login --identity --username 73b8006a-94c7-4c6e-b127-637fc5554013 \\n\\n# Subscription\\nsubscription=`curl -s -H Metadata:true --noproxy \"*\" \"http://169.254.169.254/metadata/instance?api-version=2021-02-01\" | jq -r .compute.subscriptionId`\\necho `date  +\"%Y-%m-%d-%T\"` Subscription is $subscription\\n\\n# Resource Group \\nazResourceGroup=`az group create --name ${sid}-RG --location eastus | jq -r .name`\\necho `date  +\"%Y-%m-%d-%T\"` Resource Group is $azResourceGroup\\n\\n# Virtual Network and subnet \\necho `date  +\"%Y-%m-%d-%T\"` Creating vnet\\naz network vnet create \\\\n    --resource-group ${azResourceGroup} \\\\n    --name ${sid}-Vnet \\\\n    --address-prefix 192.168.0.0/16 \\\\n    --subnet-name ${sid}-Subnet \\\\n    --subnet-prefix 192.168.1.0/24\\n\\n# Public IP \\necho `date  +\"%Y-%m-%d-%T\"` Creating Public IP\\naz network public-ip create \\\\n    --resource-group ${azResourceGroup} \\\\n    --dns-name ${sid}-vm \\\\n    --name ${sid}-pip \\n\\n# Network Security Group\\necho `date  +\"%Y-%m-%d-%T\"` Creating nsg\\naz network nsg create \\\\n    --resource-group ${azResourceGroup} \\\\n    --name ${sid}-nsg \\n\\n# Add SSH rule \\necho `date  +\"%Y-%m-%d-%T\"` Creating nsg rule for SSH\\naz network nsg rule create \\\\n    --resource-group ${azResourceGroup} \\\\n    --nsg-name ${sid}-nsg \\\\n    --name ${sid}-NetworkSecurityGroupRuleSSH \\\\n    --protocol tcp \\\\n    --priority 1000 \\\\n    --destination-port-range 22 \\\\n    --access allow\\n\\n# Add HTTP rule\\necho `date  +\"%Y-%m-%d-%T\"` Creating nsg rule for HTTP\\naz network nsg rule create \\\\n    --resource-group ${azResourceGroup} \\\\n    --nsg-name ${sid}-nsg \\\\n    --name ${sid}-NetworkSecurityGroupRuleWeb \\\\n    --protocol tcp \\\\n    --priority 1001 \\\\n    --destination-port-range 80 \\\\n    --access allow \\n\\n# Add Control-M Server-to-Agent rule\\necho `date  +\"%Y-%m-%d-%T\"` Creating nsg rule for S2A port range\\naz network nsg rule create \\\\n    --resource-group ${azResourceGroup} \\\\n    --nsg-name ${sid}-nsg \\\\n    --name ${sid}-NetworkSecurityGroupRuleS2A \\\\n    --protocol tcp \\\\n    --priority 1002 \\\\n    --destination-port-range 7000-8000 \\\\n    --access allow \\n\\n# Create NIC\\necho `date  +\"%Y-%m-%d-%T\"` Creating NIC\\naz network nic create \\\\n    --resource-group ${azResourceGroup} \\\\n    --name ${sid}-Nic \\\\n    --vnet-name ${sid}-Vnet \\\\n    --subnet ${sid}-Subnet \\\\n    --public-ip-address ${sid}-pip \\\\n    --network-security-group ${sid}-nsg \\n\\n# Create a Virtual Machine\\necho `date  +\"%Y-%m-%d-%T\"` Creating virtual machine\\naz vm create \\\\n    --resource-group ${azResourceGroup} \\\\n    --name ${sid}-vm \\\\n    --location eastus \\\\n    --nics ${sid}-Nic \\\\n    --image CentOS \\\\n    --public-ip-address-dns-name ${sid}-vm \\\\n    --public-ip-sku Standard \\\\n    --admin-username azureuser \\\\n    --generate-ssh-keys \\\\n    --assign-identity /subscriptions/${subscription}/resourcegroups/${identityGroup}/providers/Microsoft.ManagedIdentity/userAssignedIdentities/jogoldbeUAMI\\n\\n# Add Tags\\necho `date  +\"%Y-%m-%d-%T\"` Adding tags to vm\\naz vm update \\\\n    --resource-group ${azResourceGroup} \\\\n    --name ${sid}-vm \\\\n    --set tags.ctmenvironment=${ctmenvironment} tags.ctmhostgroup=${ctmhostgroup}\\n\\n# Custom Script extension: script gzipped and Base64 encoded\\necho `date  +\"%Y-%m-%d-%T\"` Setting Custom Script vm extension\\naz vm extension set \\\\n  --resource-group ${azResourceGroup} \\\\n  --vm-name ${sid}-vm \\\\n  --name customScript \\\\n  --no-auto-upgrade-minor-version true \\\\n  --publisher Microsoft.Azure.Extensions \\\\n  --settings '{\"script\" : \"H4sIAGPsVmICA81XbW/bNhD+HP2Km+rAewEl27GTxoMbGOmWBkg6rGkLbEEQ09JZZiOJCkkpb8t/35GyZWdJ2w350OVDTFG8e+7lOd7pxXfhVOThlOu5543/PD/67WDkhxVXYSqTMDLZOb8tlKyEFjJnk5gbhJ/am3+wzYxtxuebb9jmMds8aU8COu97L2B/jtEFiBnwW4hSASLXhqcpxh5tMFahspo8OnAKrT1geAkdOPsZzBxzbwOjubSSKylMNS72F5siTxbKvQ1dxhJUkZFmkRVSGZgbU+hhGBY8uuAJ6iATkZJazkwQySy8wBsdrra4jjY2PKfFhgBYBG2HxRD8U35bKmQEdOblPMPR2D7D/tGhR4exVOnoK2g3ZaawkDpsNHmY8yn5Nep6SZFENlj1kgwb/WfbfXj1CkI0kUUKHFQQr8DcTttbhImOLEMI7AZWJs0EUOLez1FhW0Mu4fXbE+AWRlOUZRlrkgNZKogxk4B5JZTMM8wNaMpWHMO+zI2SKTsOT1BRisFImEtt9FOhHfSCbi/YCXr9XRAF6+702FaXDTqs1+kHpWZXqA3rWY+L0mAgcoMq52njqlPc9h75hAWmTGGKlBty0HvK6U+XHrm6t2cJVGWg5/KKqKNQk3cRskTJsoDs5t1i48A9M2azT9sfj2l9WaK6AcMTvbdHyrwXGzUtGHzQqBjXWiQ5xnDMc8phDIcxBUoYwpaJTOMpfhgfH5IcWUAlQ4El6i6PMFZq6yyh7WxNX3Y625zt9qMd1o+2kU27vR22vbUziwaDQb/T3SLsAzSr6DurPCpaStFoEhFBgWlgb+AYDafS5UOjSrT+SKrp6xvwf/TBt6wj0nW3d4PeoB8sfsNsIRO68OUR7vFCLOt31Ov0uqzTY52uD39RWIEpaEOTNGvIkdDm9IzeaspJZL4PnF+jkV8buOSQ/wMdCSqeltieWOPnLgv/b/stB52ZD60n5hx8A8Mbs9U6b9+SuROPLpzK3lStuzrs94yebJjt5oRISLdKxcuUahkjRWxa1ITbq4m/JO5Hd2xZDq27WvN9UxMuCsAkGF1NHC6ReR2YHh2y3X4+NGn5Anahr+I17ILq8kqq2OK7V8/Gt1q+gK9Vte47/Wp3NXrN6vkmWIwvmMBLvW4C3Ua5cTloVs83wWJ81oTr+uY+/BbFHORoKOEXdf+Y8QhPzwJRVH36N45jqhRNG0U5TUV0uNyhcqkyEX/LEq6yw5jMcM2rtoJpkdpey1gqI25IQzPk0OQT5DJeVL0bEjSasjjv9oNre3Otuu+T7dDKftJwlVDaC50JHT3dNXnFWTd4GXTq1+780gZHMHsP2GnRTR0muXVxYm68YREqI2aCTMdaPC/WtCewJla/t8y0UwWLgZp9hgTRMJa4ltnENFMrrL+s5XVJzfihTAT21raji5tX7PqR/VCvnIBbugr3vV9/f/3WFcqCUVCThokCUmoRj+eH1p3tA/er3BLR4lyfoDE0u+pgdhnnE298dDg+ofK06u+HEzcatSz7XMeJAdo6ZGGYUFuh9I8meF0ooFVi5uC37pz4vT9xkzSN0vSGgmng5QDOzrx6mn4wfPkOYWyDAov6rXXQsCZpFKGpmiasVv0N4NPIfS0M7O7WAzjQ32flrwQlcoo2b/G/Bl0XegA8E1/LYvM90rDIAZz3OkGv0wmORF5e1xmsL9r7BtX/mupI5jORQC03bLr80B0dDi13/qG4GVgeoTyMwcn78bv3v7yGVwtOk5xTahehuyvcx5ZzhJwiuwLa9f8Gm52/JaANAAA=\"}'\\n\\n  echo `date  +\"%Y-%m-%d-%T\"` All done",
+      "SubApplication" : "serverless",
+      "FileName" : "azure-provision.sh",
+      "Host" : "azureagents",
+      "Variables" : [ 
+        {"PARM1" : "2"}, 
+        {"PARM2" : "ctmprod"}, 
+        {"PARM3" : "slessaz"}, 
+        {"PARM4" : "%%ORDERID"}
+      ],
+      "CaptureResGroup": {
+				"Type": "Action:CaptureOutput",
+				"Capture": "UpToEndOfLine",
+				"Search": "Resource Group is ",
+				"VariableName": "\\\\azResourceGroup"
+			}
+    },
+    "jog-sless-wait-for-hosts" : {"Type" : "Job:EmbeddedScript",
+      "Script" : "#!/bin/bash\\nhostgrp=${1}\\nsleeper=15\\nwaiter=20\\nwhile [ $waiter -gt 0 ]\\ndo\\n    ctmhostgroup=`ctm config server:hostgroup:agents::get smprod ${hostgrp} 2> /dev/null`\\n    rc=$?\\n    if [ ${rc} -ne 0 ];\\n    then\\n        echo Hostgroup ${hostgrp} does not exist yet\\n        sleep $sleeper\\n        waiter=$((waiter-1))\\n    else\\n        echo Hostgroup ${hostgrp} found\\n        waiter=100\\n        break\\n    fi\\ndone\\nif [ ${waiter} -eq 0 ];\\nthen\\n    echo Hostgroup not found after 5 minutes - quitting\\n    exit 99\\nfi\\n#   Test first\\nhgagent=`echo ${ctmhostgroup} | jq -r .[0].host`\\nagstat=`ctm config server:agent::ping smprod ${hgagent} | jq -r .message | cut -d \" \" -f 4`\\nif [ ${agstat} != available ]\\nthen\\n        echo No agent available in hostgroup\\n        exit 99\\nelse\\n    echo At least one agent ${hgagent} is available in hostgroup ${hostgrp}\\nfi\\nctm run workloadpolicy::activate ${1}2${1}\\nexit 0\\n",
+      "FileName" : "azure-host-wait.sh",
+      "Description" : "Wait for hostgroup to appear and an agent to become available",
+      "Variables" : [ 
+        {"PARM1" : "slessaz"}
+      ]
+    },
+
+    "jog-sless-watch-workload" : {"Type" : "Job:EmbeddedScript",
+      "Script" : "#!/bin/bash\\n\\nctm config server:hostgroup:agents::get smprod ${1} &> /dev/null\\nif [[ $? != 0 ]];\\nthen\\n   echo hostgroup ${1} does not exist\\n   exit 99\\nfi\\nterminate=0\\nhoststowatch=`ctm config server:hostgroup:agents::get smprod ${1} | jq -r .[].host`\\nwhile (( ${terminate} != 1 ))\\ndo\\n   termwait=`ctm run jobs:status::get -s \"server=*&status=Wait *&host=${1}&deleted=False\" | jq .returned`\\n\\n   termexec=0\\n   for host in $hoststowatch;\\n   do\\n      numexec=`ctm run jobs:status::get -s \"server=*&status=Executing&host=${host}&deleted=False\" | jq .returned`\\n      if [[ $numexec != 0 ]];\\n      then\\n         termexec=1\\n      fi\\n   done\\n\\n   if [[ (( $termwait -gt 0 )) || (( $termexec -gt 0  )) ]];\\n   then\\n      sleep 30\\n   else\\n      terminate=1\\n   fi\\ndone",
+      "FileName" : "azure-watch.sh",
+      "Variables" : [ 
+        {"PARM1" : "slessaz"}
+      ]
+    },
+
+    "jog-sless-terminate" : {"Type" : "Job:EmbeddedScript",
+      "Script" : "#!/bin/bash\\nctm run workloadpolicy::deactivate ${1}2${1}\\nctm config server:hostgroup:agents::get smprod ${1} &> /dev/null\\nif [[ $? != 0 ]];\\nthen\\n   echo hostgroup ${1} does not exist\\n   exit 99\\nfi\\nhoststoterminate=`ctm config server:hostgroup:agents::get smprod ${1} | jq -r .[].host`\\nfor host in $hoststoterminate;\\ndo\\n    ctm config server:hostgroup:agent::delete smprod ${1} ${host}\\n    ctm config server:agent::delete smprod ${host}\\ndone\\naz login --identity --username 73b8006a-94c7-4c6e-b127-637fc5554013\\naz group delete --resource-group ${2} --no-wait --yes\\n",
+      "FileName" : "azure-terminate.sh",
+      "Variables" : [ 
+        {"PARM1" : "slessaz"},
+        {"PARM2" : "%%azResourceGroup"}
+      ],
+      "eventsToDelete" : {
+        "Type" : "DeleteEvents",
+        "Events" : [ {
+          "Event" : "jog-sless-az-running",
+          "Date" : "NoDate"
+        } ]
+      }
+    },
+    "flow01" : {"Type" : "Flow", "Sequence" : [ "jog-sless-provision-resources", "jog-sless-wait-for-hosts", "jog-sless-watch-workload", "jog-sless-terminate"]}
+  }
+}

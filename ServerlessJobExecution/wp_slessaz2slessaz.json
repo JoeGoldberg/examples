@@ -1,0 +1,11 @@
+{
+  "slessazure2slessazure": {"Type": "WorkloadPolicy",
+    "HostMappings": [
+      {"Server": "Global",
+        "MapTo": "slessaz",
+        "Host": "slessaz"
+      }
+    ],
+    "Filter": {"JobName": "*"}
+  }
+}
