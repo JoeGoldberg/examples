@@ -7,7 +7,7 @@
     "DatabaseName": "bmc-dataplatform-foundation",
     "Host": "https://www.googleapis.com/bigquery/v2",
     "Password": "*****",
-    "TargetAgent": "ip-172-31-16-53",
-    "TargetCTM": "smprod"
+    "Centralized": true
+
   }
 }

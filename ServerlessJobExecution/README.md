@@ -26,3 +26,5 @@ A brief description of the contents:
  - **wp_slessaws2slessaws.json** 
  - **wp_slessaz2slessaz.json**
  - **wp_slessgcp2slessgcp.json** - Workload policies that map a hostgroup to itself. This acts as a signal to Control-M that new resources are available to run jobs that are waiting for hosts in those hostgroups.
+
+ [Here is a video demonstration of this approach](https://www.youtube.com/watch?v=9PyCOht7ZQM)
